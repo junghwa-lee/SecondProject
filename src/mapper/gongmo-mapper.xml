@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.gongmo-mapper">
+
+	<!-- 공모전 리스트 데이터 출력 -->
+	<select id="gongmoListData" resultType="vo.GongmoVO"
+		parameterType="hashmap">
+		SELECT gm_no,gm_poster,gm_subject,gm_period,gm_host,gm_hit,num
+		FROM (SELECT gm_no,gm_poster,gm_subject,gm_period,gm_host,gm_hit,rownum as num
+		FROM (SELECT gm_no,gm_poster,gm_subject,gm_period,gm_host,gm_hit
+		FROM gongmo WHERE gm_cate=#{gm_cate} ORDER BY gm_no DESC))
+		WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 공모전 카테고리별(gm_cate) 데이터 출력 -->
+	<select id="gongmoTotalData" resultType="vo.GongmoVO"
+		parameterType="hashmap">
+		SELECT gm_no,gm_poster,gm_subject,gm_period,gm_host,gm_hit,num
+		FROM (SELECT gm_no,gm_poster,gm_subject,gm_period,gm_host,gm_hit,rownum as num
+		FROM (SELECT gm_no,gm_poster,gm_subject,gm_period,gm_host,gm_hit
+		FROM gongmo ORDER BY gm_no DESC))
+		WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!--  카테고리넘버별(gm_cate)총 페이지 나누기 -->
+	<select id="gongmoTotalPage" resultType="int"
+		parameterType="int">
+		SELECT CEIL(COUNT(*)/12.0) FROM gongmo
+		WHERE gm_cate=#{gm_cate}
+	</select>
+
+	<!-- 상세보기(gm_hit증가) -->
+	<update id="gongmoHitIncrement" parameterType="int">
+		UPDATE gongmo SET
+		gm_hit=gm_hit+1
+		WHERE gm_no=#{gm_no }
+	</update>
+
+	<!-- 전체 보기 페이지 --> 
+	<select id="gongmoTotalPage2" resultType="int"
+		parameterType="int">
+		SELECT CEIL(COUNT(*)/12.0) FROM gongmo
+	</select>
+	
+	<!-- 공모전 게시글 상세보기 -->
+	<select id="gongmoDetailData" resultType="vo.GongmoVO" parameterType="int">
+		select gm_no,gm_subject,gm_field,gm_period,gm_host,gm_homepage,gm_tel,gm_target,gm_prize,gm_prize2,gm_poster,gm_hit,gm_content
+		from gongmo
+		where gm_no=#{gm_no}
+	</select>
+	
+	
+
+	<!-- ========================================================================= -->
+	<!-- 데이터게시판 -->
+	
+	<!-- 공모전 데이터게시판 출력 -->
+	<select id="gongmoboardListData" resultType="vo.GongmoVO" parameterType="hashmap">
+	    SELECT gm_no,gm_subjecct,gm_host,gm_period,gm_hit,num
+	    FROM (SELECT gm_no,gm_subjecct,gm_host,gm_period,gm_hit,rownum as num
+	    FROM (SELECT gm_no,gm_subjecct,gm_host,gm_period,gm_hit
+	    FROM gongmo ORDER BY gm_no DESC))
+	    WHERE num BETWEEN #{start} AND #{end}
+  	</select>
+  	
+  	<!-- @@@공모전 데이터게시판 총페이지 나누기 출력 -->
+  	<select id="gongmoboardTotalPage" resultType="int">
+   	 SELECT CEIL(COUNT(*)/10.0) FROM gongmo
+ 	</select>
+ 	
+ 	<!-- 중복된 문장이 있는 경우 처리:재사용 -->
+  	<sql id="where-no">
+    	WHERE gm_no=#{gm_no}
+  	</sql>
+  	
+ 	<!-- @@@조회수 증가 -->
+  	<update id="gmListHitIncrement" parameterType="int">
+	    UPDATE gongmo SET
+	    gm_hit=gm_hit+1
+	<include refid="where-no"/>
+ 	</update>
+ 	
+
+	
+	<!-- 게시물 검색하기 -->
+	<select id="gongmoSearchBoard" resultType="vo.GongmoVO" parameterType="hashmap">
+		SELECT gm_no, gm_subject, gm_period, gm_cate, gm_host, num
+		FROM (SELECT gm_no, gm_subject, gm_period, gm_cate, gm_host, rownum as num
+		FROM (SELECT gm_no, gm_subject, gm_period, gm_cate, gm_host
+		FROM gongmo WHERE ${finding} LIKE '%'||'${voca}'||'%'))
+		WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	<select id="gongmoSearchTotalPage" resultType="int" parameterType="hashmap">
+		SELECT CEIL(COUNT(*) / 10.0) FROM gongmo WHERE #{finding} LIKE '%' || #{voca} || '%' 
+	</select>
+  	
+  	
+  	 <!-- 좋아요 -->
+<!--   	<update id="gongmoLikeIncrement" parameterType="int">
+    UPDATE gongmo SET
+    hit=hit+1
+    WHERE gm_no=#{gm_no}
+  	</update> -->
+  	
+  	<!-- 스크랩 -->
+	  <!-- 스크랩저장  -->
+	  <insert id="gongmoScrapInsert" parameterType="vo.GongmoScrapVO">
+	    INSERT INTO gongmoscrap VALUES(
+	      (SELECT NVL(MAX(no)+1,1) FROM gongmoscrap),#{id},#{gmno}
+	    )
+	  </insert>
+	  <!-- 데이터 읽기(스크랩 목록) -->
+	  <select id="gongmoScrapListData" parameterType="String" resultType="vo.GongmoScrapVO">
+	    SELECT * FROM gongmoscrap
+	    WHERE id=#{id}
+	    ORDER BY no DESC
+	  </select>
+	  <!-- 스크랩 여부 확인 -->
+	  <select id="gongmoScrapCount" parameterType="vo.GongmoScrapVO" resultType="int">
+	    SELECT COUNT(*) FROM gongmoscrap
+	    WHERE id=#{id} AND gmno=#{gmno}
+	  </select>
+	  <!-- 스크랩 삭제(취소) -->
+	  <delete id="gongmoScrapCancel" parameterType="int">
+	    DELETE FROM gongmoscrap
+	    WHERE no=#{no}
+	  </delete>
+  	
+</mapper>

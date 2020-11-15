@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 합격자소서 -->
+<mapper namespace="mapper.letter-mapper">
+	<!-- 합격자소서 리스트 -->
+	<select id="letterListData" resultType="SelfVO" parameterType="hashmap">
+	SELECT sno,ssubject,sname,sindutype,num
+	FROM (SELECT sno,ssubject,sname,sindutype,rownum as num
+	FROM (SELECT sno,ssubject,sname,sindutype
+	FROM selfletter ORDER BY sno DESC))
+	WHERE num BETWEEN #{start} AND #{end}
+	
+	</select>
+	<!-- 합격자소서 리스트 총페이지 -->
+	<select id="letterTotalPage" resultType="int">
+   	SELECT CEIL(COUNT(*)/10.0) FROM selfletter
+  	</select>
+  	
+  	<!-- 자소서 상세보기 -->
+  	<select id="letterDetailData" resultType="SelfVO" parameterType="int">
+	SELECT * FROM selfletter
+	WHERE sno=#{sno}
+	</select>
+	
+	<!-- 자소서 작성 -->
+	<insert id="letterInsert" parameterType="SelfVO">
+	<selectKey keyProperty="sno" resultType="int" order="BEFORE">
+		SELECT NVL(MAX(sno)+1,1) as sno FROM selfletter
+	</selectKey>
+	INSERT INTO selfletter VALUES(
+		#{sno},
+		#{ssubject},
+		#{sname},
+		#{sindutype},
+		#{sq1},
+		#{sa1},
+		#{sq2},
+		#{sa2},
+		#{sq3},
+		#{sa3},
+		0
+	)
+	</insert>
+	
+	<!-- 조회수 증가 -->
+	<update id="letterHitIncrement" parameterType="int">
+	UPDATE selfletter SET
+	hit=hit+1
+	WHERE sno=#{sno}
+	</update>
+	
+	<!-- 많이 본 자소서 -->
+	<select id="popular" resultType="SelfVO" parameterType="hashmap">
+	SELECT sno,ssubject,sindutype,num
+	FROM (SELECT sno,ssubject,sindutype,rownum as num
+	FROM (SELECT sno,ssubject,sindutype
+	FROM selfletter ORDER BY hit DESC))
+	WHERE num BETWEEN #{start} AND #{end}
+
+	</select> 
+
+	
+	
+	<!-- 수정하기 -->
+	<!-- <update id="letterupdate" parameterType="SelfVO">
+	UPDATE selfletter SET
+	ssubject=#{ssubject},
+	sname=#{sname},
+	sindutype=#{sindutype},
+	sq1=#{sq1},
+	sa1=#{sa1},
+	sq2=#{sq2},
+	sa2=#{sa2},
+	sq3=#{sq3},
+	sa3=#{sa3}
+	WHERE sno=#{sno}
+	</update> -->
+	
+	
+</mapper>

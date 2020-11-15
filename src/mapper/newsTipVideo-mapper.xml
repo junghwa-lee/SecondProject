@@ -1,0 +1,576 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.newsTipVideo-mapper">
+	<!-- 뉴스 인기순 -->
+	<select id="newsHitList" resultType="vo.NewsVO" parameterType="hashmap">
+		SELECT n_no,n_title,n_poster FROM news ORDER BY n_hit DESC
+	</select>
+	
+	<!-- 뉴스 리스트 -->
+	<select id="newsListData" resultType="vo.NewsVO" parameterType="hashmap">
+	    SELECT n_no,n_poster,n_title,n_precontent,n_hit,n_regdate,num
+	    FROM (SELECT n_no,n_poster,n_title,n_precontent,n_hit,n_regdate,rownum as num
+	    FROM (SELECT n_no,n_poster,n_title,n_precontent,n_hit,n_regdate 
+	    FROM news ORDER BY n_no))
+	    WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 뉴스 페이지 수 -->
+	<select id="newsTotalPage" resultType="int" parameterType="int">
+		SELECT CEIL(COUNT(*)/6.0) FROM news
+	</select>
+
+	<!-- 뉴스 검색하기 -->
+	<select id="newsSearch" resultType="vo.NewsVO" parameterType="hashmap">
+		SELECT n_no,n_poster,n_title,n_precontent,n_hit,n_regdate,num
+	    FROM (SELECT n_no,n_poster,n_title,n_precontent,n_hit,n_regdate,rownum as num
+	    FROM (SELECT n_no,n_poster,n_title,n_precontent,n_hit,n_regdate 
+	    FROM news WHERE n_title LIKE '%'||'${searchkey}'||'%' ORDER BY n_no))
+	    WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 뉴스 검색페이지 수 -->
+	<select id="newsSearchTotalPage" resultType="int" parameterType="hashmap">
+		SELECT CEIL(COUNT(*)/6.0) FROM news WHERE n_title LIKE '%'||'${searchkey}'||'%' ORDER BY n_no
+	</select>
+	
+	<!-- 뉴스 검색글 갯수 -->
+	<select id="newsSearchCount" resultType="int" parameterType="hashmap">
+	  	SELECT COUNT(*) FROM news WHERE n_title LIKE '%'||'${searchkey}'||'%' ORDER BY n_no
+  	</select>
+	
+	<!-- 뉴스 상세페이지 -->
+	<select id="newsDetailData" resultType="vo.NewsVO" parameterType="int">
+	    SELECT n_no,n_precontent,n_poster,n_poster2,n_title,n_regdate,n_content,n_writer,n_hit FROM news 
+	    WHERE n_no=#{n_no}
+	</select>
+  	
+	<!-- 뉴스 조회수 -->
+	<update id="newsHitIncrement" parameterType="int">
+		UPDATE news SET
+		n_hit=n_hit+1
+		WHERE n_no=#{n_no}
+	</update>
+	
+	<!-- 뉴스 글 갯수 -->
+	<select id="newsCount" resultType="int" parameterType="int">
+	  	SELECT COUNT(*) FROM news 
+  	</select>
+  	
+  	<!-- 뉴스 댓글 -->
+	<insert id="newsReplyInsert" parameterType="vo.newsReplyVO">
+	 <selectKey keyProperty="no" resultType="int" order="BEFORE">
+	   SELECT NVL(MAX(no)+1,1) as no FROM news_reply
+	 </selectKey>
+    	INSERT INTO news_reply(no,bno,id,msg,group_id) VALUES(
+    	  #{no},
+     	  #{bno},
+    	  #{id},
+    	  #{msg},
+    	  (SELECT NVL(MAX(group_id)+1,1) FROM news_reply)
+   		)
+  	</insert>
+  
+  	<select id="newsReplyListData" resultType="vo.newsReplyVO" parameterType="int">
+	    SELECT no,bno,id,msg,TO_CHAR(regdate,'YYYY-MM-DD HH24:MI:SS') as dbday,
+	    group_tab FROM news_reply 
+	    WHERE bno=#{bno}
+	    ORDER BY group_id DESC, group_step ASC
+  	</select>
+  
+  <!-- 
+                         no  group_id   group_step  group_tab  root  depth
+        AAAAAA            1     1          0            0              3
+          =>OOOOOOO      8     1          1            1              0
+          =>KKKKKKK       7     1          2            1              0
+          =>BBBBBB        2     1          3            1              1
+          
+           =>CCCCCCC      3     1          4            2              1
+            =>FFFFFFF     5     1          5            3              0
+          
+        DDDDDD            4     2          0            0              1
+          => GGGGGGG      6     2          1            1              0
+          => KKKKKK       9     2          1            1
+   -->
+	  
+	  <select id="newsReplyParentData" parameterType="int" resultType="vo.newsReplyVO">
+	   SELECT group_id,group_step,group_tab
+	   FROM news_reply
+	   WHERE no=#{no}
+	  </select>
+	  
+	  <update id="newsReplyStepIncrement" parameterType="vo.newsReplyVO">
+	    UPDATE news_reply SET
+	    group_step=group_step+1
+	    WHERE group_id=#{group_id} AND group_step>#{group_step}
+	  </update>
+	  
+	  <insert id="newsReplyReplyInsert" parameterType="vo.newsReplyVO">
+	    <selectKey keyProperty="no" resultType="int" order="BEFORE">
+	      SELECT NVL(MAX(no)+1,1) as no FROM news_reply
+	    </selectKey>
+	    INSERT INTO news_reply(no,bno,id,msg,group_id,group_step,group_tab,root,depth) VALUES(
+	      #{no},
+	      #{bno},
+	      #{id},
+	      #{msg},
+	      #{group_id},
+	      #{group_step},
+	      #{group_tab},
+	      #{root},
+	      0
+	    )
+	  </insert>
+	  
+	  <update id="newsReplyDepthIncrement" parameterType="int">
+	    UPDATE news_reply SET
+	    depth=depth+1
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <update id="newsReplyUpdate" parameterType="vo.newsReplyVO">
+	    UPDATE news_reply SET
+	    msg=#{msg}
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <!-- 삭제 -->
+	  <select id="newsReplyInfoData" resultType="vo.newsReplyVO" parameterType="int">
+	    SELECT depth,root FROM news_reply
+	    WHERE no=#{no}
+	  </select>
+	  
+	  <!-- depth==0 -->
+	  <delete id="newsReplyDelete" parameterType="int">
+	    DELETE FROM news_reply
+	    WHERE no=#{no}
+	  </delete>
+	  
+	  <!-- depth!=0 -->
+	  <update id="newsReplyMsgUpdate" parameterType="int">
+	    UPDATE news_reply SET
+	    msg='관리자가 삭제한 댓글입니다'
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <update id="newsReplyDepthDecrement" parameterType="int">
+	    UPDATE news_reply SET
+	    depth=depth-1
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <select id="newsReplyCount" resultType="int" parameterType="int">
+	   SELECT COUNT(*) FROM news_reply
+	   WHERE bno=#{bno}
+	  </select>
+
+	<!-- 팁 인기순 -->
+	<select id="tipHitList" resultType="vo.TipVO" parameterType="hashmap">
+		SELECT t_no,t_title,t_poster FROM tip ORDER BY t_hit DESC
+	</select>
+	
+	<!-- 팁 리스트 -->
+	<select id="tipListData" resultType="vo.TipVO" parameterType="hashmap">
+	    SELECT t_no,t_poster,t_title,t_precontent,t_hit,t_regdate,num
+	    FROM (SELECT t_no,t_poster,t_title,t_precontent,t_hit,t_regdate,rownum as num
+	    FROM (SELECT t_no,t_poster,t_title,t_precontent,t_hit,t_regdate 
+	    FROM tip ORDER BY t_no))
+	    WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 팁 페이지 수 -->
+	<select id="tipTotalPage" resultType="int" parameterType="int">
+		SELECT CEIL(COUNT(*)/6.0) FROM tip
+	</select>
+	
+	<!-- 팁 검색하기 -->
+	<select id="tipSearch" resultType="vo.TipVO" parameterType="hashmap">
+		SELECT t_no,t_poster,t_title,t_precontent,t_hit,t_regdate,num
+	    FROM (SELECT t_no,t_poster,t_title,t_precontent,t_hit,t_regdate,rownum as num
+	    FROM (SELECT t_no,t_poster,t_title,t_precontent,t_hit,t_regdate  
+	    FROM tip WHERE t_title LIKE '%'||'${searchkey}'||'%' ORDER BY t_no)) 
+	    WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 팁 검색페이지 수 -->
+	<select id="tipSearchTotalPage" resultType="int" parameterType="hashmap">
+		SELECT CEIL(COUNT(*)/6.0) FROM tip WHERE t_title LIKE '%'||'${searchkey}'||'%' ORDER BY t_no
+	</select>
+	
+	<!-- 팁 검색글 갯수 -->
+	<select id="tipSearchCount" resultType="int" parameterType="hashmap">
+	  	SELECT COUNT(*) FROM tip WHERE t_title LIKE '%'||'${searchkey}'||'%' ORDER BY t_no
+  	</select>
+	
+	<!-- 팁 상세페이지 -->
+	<select id="tipDetailData" resultType="vo.TipVO" parameterType="int">
+	    SELECT t_no,t_precontent,t_poster,t_poster2,t_title,t_regdate,t_content,t_writer,t_hit FROM tip  
+	    WHERE t_no=#{t_no}
+	</select>
+	
+	<!-- 팁 조회수 -->
+	<update id="tipHitIncrement" parameterType="int">
+		UPDATE tip SET
+		t_hit=t_hit+1
+		WHERE t_no=#{t_no}
+	</update>
+	
+	<!-- 팁 글 갯수 -->
+	<select id="tipCount" resultType="int" parameterType="int">
+	  	SELECT COUNT(*) FROM tip 
+  	</select>
+  	
+  	
+  	<!-- 팁 댓글 -->
+	<insert id="tipReplyInsert" parameterType="vo.tipReplyVO">
+	 <selectKey keyProperty="no" resultType="int" order="BEFORE">
+	   SELECT NVL(MAX(no)+1,1) as no FROM tip_reply
+	 </selectKey>
+    	INSERT INTO tip_reply(no,bno,id,msg,group_id) VALUES(
+    	  #{no},
+     	  #{bno},
+    	  #{id},
+    	  #{msg},
+    	  (SELECT NVL(MAX(group_id)+1,1) FROM tip_reply)
+   		)
+  	</insert>
+  
+  	<select id="tipReplyListData" resultType="vo.tipReplyVO" parameterType="int">
+	    SELECT no,bno,id,msg,TO_CHAR(regdate,'YYYY-MM-DD HH24:MI:SS') as dbday,
+	    group_tab FROM tip_reply 
+	    WHERE bno=#{bno}
+	    ORDER BY group_id DESC, group_step ASC
+  	</select>
+  
+  <!-- 
+                         no  group_id   group_step  group_tab  root  depth
+        AAAAAA            1     1          0            0              3
+          =>OOOOOOO      8     1          1            1              0
+          =>KKKKKKK       7     1          2            1              0
+          =>BBBBBB        2     1          3            1              1
+          
+           =>CCCCCCC      3     1          4            2              1
+            =>FFFFFFF     5     1          5            3              0
+          
+        DDDDDD            4     2          0            0              1
+          => GGGGGGG      6     2          1            1              0
+          => KKKKKK       9     2          1            1
+   -->
+	  
+	  <select id="tipReplyParentData" parameterType="int" resultType="vo.tipReplyVO">
+	   SELECT group_id,group_step,group_tab
+	   FROM tip_reply
+	   WHERE no=#{no}
+	  </select>
+	  
+	  <update id="tipReplyStepIncrement" parameterType="vo.tipReplyVO">
+	    UPDATE tip_reply SET
+	    group_step=group_step+1
+	    WHERE group_id=#{group_id} AND group_step>#{group_step}
+	  </update>
+	  
+	  <insert id="tipReplyReplyInsert" parameterType="vo.tipReplyVO">
+	    <selectKey keyProperty="no" resultType="int" order="BEFORE">
+	      SELECT NVL(MAX(no)+1,1) as no FROM tip_reply
+	    </selectKey>
+	    INSERT INTO tip_reply(no,bno,id,msg,group_id,group_step,group_tab,root,depth) VALUES(
+	      #{no},
+	      #{bno},
+	      #{id},
+	      #{msg},
+	      #{group_id},
+	      #{group_step},
+	      #{group_tab},
+	      #{root},
+	      0
+	    )
+	  </insert>
+	  
+	  <update id="tipReplyDepthIncrement" parameterType="int">
+	    UPDATE tip_reply SET
+	    depth=depth+1
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <update id="tipReplyUpdate" parameterType="vo.tipReplyVO">
+	    UPDATE tip_reply SET
+	    msg=#{msg}
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <!-- 삭제 -->
+	  <select id="tipReplyInfoData" resultType="vo.tipReplyVO" parameterType="int">
+	    SELECT depth,root FROM tip_reply
+	    WHERE no=#{no}
+	  </select>
+	  
+	  <!-- depth==0 -->
+	  <delete id="tipReplyDelete" parameterType="int">
+	    DELETE FROM tip_reply
+	    WHERE no=#{no}
+	  </delete>
+	  
+	  <!-- depth!=0 -->
+	  <update id="tipReplyMsgUpdate" parameterType="int">
+	    UPDATE tip_reply SET
+	    msg='관리자가 삭제한 댓글입니다'
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <update id="tipReplyDepthDecrement" parameterType="int">
+	    UPDATE tip_reply SET
+	    depth=depth-1
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <select id="tipReplyCount" resultType="int" parameterType="int">
+	   SELECT COUNT(*) FROM tip_reply
+	   WHERE bno=#{bno}
+	  </select>
+  	
+  	
+  	<!-- 비디오 인기순 -->
+	<select id="videoHitList" resultType="vo.VideoVO" parameterType="hashmap">
+		SELECT v_no,v_title,v_poster FROM video ORDER BY v_hit DESC
+	</select>
+	
+	<!-- 비디오 리스트 -->
+	<select id="videoListData" resultType="vo.VideoVO" parameterType="hashmap">
+	    SELECT v_no,v_poster,v_title,v_writer,v_hit,num
+	    FROM (SELECT v_no,v_poster,v_title,v_writer,v_hit,rownum as num
+	    FROM (SELECT v_no,v_poster,v_title,v_writer,v_hit 
+	    FROM video ORDER BY v_no))
+	    WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 비디오 페이지 수 -->
+	<select id="videoTotalPage" resultType="int" parameterType="int">
+		SELECT CEIL(COUNT(*)/12.0) FROM video
+	</select>
+	
+	<!-- 비디오 검색하기 -->
+	<select id="videoSearch" resultType="vo.VideoVO" parameterType="hashmap">
+		SELECT v_no,v_poster,v_title,v_writer,v_hit,num
+	    FROM (SELECT v_no,v_poster,v_title,v_writer,v_hit,rownum as num
+	    FROM (SELECT v_no,v_poster,v_title,v_writer,v_hit 
+	    FROM video WHERE v_title LIKE '%'||'${searchkey}'||'%' ORDER BY v_no)) 
+	    WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 비디오 검색페이지 수 -->
+	<select id="videoSearchTotalPage" resultType="int" parameterType="hashmap">
+		SELECT CEIL(COUNT(*)/12.0) FROM video WHERE v_title LIKE '%'||'${searchkey}'||'%' ORDER BY v_no
+	</select>
+	
+	<!-- 팁 검색글 갯수 -->
+	<select id="videoSearchCount" resultType="int" parameterType="hashmap">
+	  	SELECT COUNT(*) FROM video WHERE v_title LIKE '%'||'${searchkey}'||'%' ORDER BY v_no
+  	</select>
+	
+	<!-- 비디오 상세페이지 -->
+	<select id="videoDetailData" resultType="vo.VideoVO" parameterType="int">
+	    SELECT v_no,v_poster,v_title,v_video,v_writer,v_hit FROM video 
+	    WHERE v_no=#{v_no}
+	</select>
+	
+	<!-- 비디오 조회수 -->
+	<update id="videoHitIncrement" parameterType="int">
+		UPDATE video SET
+		v_hit=v_hit+1
+		WHERE v_no=#{v_no}
+	</update>
+	
+	<!-- 비디오 글 갯수 -->
+	<select id="videoCount" resultType="int" parameterType="int">
+	  	SELECT COUNT(*) FROM video 
+  	</select>
+  	
+  	
+  	<!-- 비디오 댓글 -->
+	<insert id="videoReplyInsert" parameterType="vo.videoReplyVO">
+	 <selectKey keyProperty="no" resultType="int" order="BEFORE">
+	   SELECT NVL(MAX(no)+1,1) as no FROM video_reply
+	 </selectKey>
+    	INSERT INTO video_reply(no,bno,id,msg,group_id) VALUES(
+    	  #{no},
+     	  #{bno},
+    	  #{id},
+    	  #{msg},
+    	  (SELECT NVL(MAX(group_id)+1,1) FROM video_reply)
+   		)
+  	</insert>
+  
+  	<select id="videoReplyListData" resultType="vo.videoReplyVO" parameterType="int">
+	    SELECT no,bno,id,msg,TO_CHAR(regdate,'YYYY-MM-DD HH24:MI:SS') as dbday,
+	    group_tab FROM video_reply 
+	    WHERE bno=#{bno}
+	    ORDER BY group_id DESC, group_step ASC
+  	</select>
+  
+  <!-- 
+                         no  group_id   group_step  group_tab  root  depth
+        AAAAAA            1     1          0            0              3
+          =>OOOOOOO      8     1          1            1              0
+          =>KKKKKKK       7     1          2            1              0
+          =>BBBBBB        2     1          3            1              1
+          
+           =>CCCCCCC      3     1          4            2              1
+            =>FFFFFFF     5     1          5            3              0
+          
+        DDDDDD            4     2          0            0              1
+          => GGGGGGG      6     2          1            1              0
+          => KKKKKK       9     2          1            1
+   -->
+	  
+	  <select id="videoReplyParentData" parameterType="int" resultType="vo.videoReplyVO">
+	   SELECT group_id,group_step,group_tab
+	   FROM video_reply
+	   WHERE no=#{no}
+	  </select>
+	  
+	  <update id="videoReplyStepIncrement" parameterType="vo.videoReplyVO">
+	    UPDATE video_reply SET
+	    group_step=group_step+1
+	    WHERE group_id=#{group_id} AND group_step>#{group_step}
+	  </update>
+	  
+	  <insert id="videoReplyReplyInsert" parameterType="vo.videoReplyVO">
+	    <selectKey keyProperty="no" resultType="int" order="BEFORE">
+	      SELECT NVL(MAX(no)+1,1) as no FROM video_reply
+	    </selectKey>
+	    INSERT INTO video_reply(no,bno,id,msg,group_id,group_step,group_tab,root,depth) VALUES(
+	      #{no},
+	      #{bno},
+	      #{id},
+	      #{msg},
+	      #{group_id},
+	      #{group_step},
+	      #{group_tab},
+	      #{root},
+	      0
+	    )
+	  </insert>
+	  
+	  <update id="videoReplyDepthIncrement" parameterType="int">
+	    UPDATE video_reply SET
+	    depth=depth+1
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <update id="videoReplyUpdate" parameterType="vo.videoReplyVO">
+	    UPDATE video_reply SET
+	    msg=#{msg}
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <!-- 삭제 -->
+	  <select id="videoReplyInfoData" resultType="vo.videoReplyVO" parameterType="int">
+	    SELECT depth,root FROM video_reply
+	    WHERE no=#{no}
+	  </select>
+	  
+	  <!-- depth==0 -->
+	  <delete id="videoReplyDelete" parameterType="int">
+	    DELETE FROM video_reply
+	    WHERE no=#{no}
+	  </delete>
+	  
+	  <!-- depth!=0 -->
+	  <update id="videoReplyMsgUpdate" parameterType="int">
+	    UPDATE video_reply SET
+	    msg='관리자가 삭제한 댓글입니다'
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <update id="videoReplyDepthDecrement" parameterType="int">
+	    UPDATE video_reply SET
+	    depth=depth-1
+	    WHERE no=#{no}
+	  </update>
+	  
+	  <select id="videoReplyCount" resultType="int" parameterType="int">
+	   SELECT COUNT(*) FROM video_reply
+	   WHERE bno=#{bno}
+	  </select>
+  	
+  	
+  	
+  	<!-- 뉴스 스크랩 저장 -->
+	<insert id="newsScrapInsert" parameterType="vo.NewsScrapVO">
+	  	INSERT INTO newsscrap VALUES(
+	  		(SELECT NVL(MAX(no)+1,1) FROM newsscrap),#{id},#{nno}
+	  	)
+	</insert>
+	
+	<!-- 팁 스크랩 저장 -->
+	<insert id="tipScrapInsert" parameterType="vo.TipScrapVO">
+	  	INSERT INTO tipscrap VALUES(
+	  		(SELECT NVL(MAX(no)+1,1) FROM tipscrap),#{id},#{tno}
+	  	)
+	</insert>
+	
+	<!-- 비디오 스크랩 저장 -->
+	<insert id="videoScrapInsert" parameterType="vo.VideoScrapVO">
+	  	INSERT INTO videoscrap VALUES(
+	  		(SELECT NVL(MAX(no)+1,1) FROM videoscrap),#{id},#{vno}
+	  	)
+	</insert>
+	
+	<!-- 뉴스스크랩 데이터 읽기(스크랩 목록) -->
+	<select id="newsScrapListData" parameterType="String" resultType="vo.NewsScrapVO">
+	  	SELECT * FROM newsscrap 
+	  	WHERE id=#{id} 
+	  	ORDER BY no DESC
+	</select>
+	
+	<!-- 팁스크랩 데이터 읽기(스크랩 목록) -->
+	<select id="tipScrapListData" parameterType="String" resultType="vo.TipScrapVO">
+	  	SELECT * FROM tipscrap 
+	  	WHERE id=#{id} 
+	  	ORDER BY no DESC
+	</select>
+	
+	<!-- 비디오스크랩 데이터 읽기(스크랩 목록) -->
+	<select id="videoScrapListData" parameterType="String" resultType="vo.VideoScrapVO">
+	  	SELECT * FROM videoscrap 
+	  	WHERE id=#{id} 
+	  	ORDER BY no DESC
+	</select>
+	
+	<!-- 뉴스 스크랩 여부 확인: 같은 것 스크랩 불가능하게끔 -->
+	<select id="newsScrapCount" parameterType="vo.NewsScrapVO" resultType="int">
+	  	SELECT COUNT(*) FROM newsscrap 
+	  	WHERE id=#{id} AND nno=#{nno}
+	</select>
+	
+	<!-- 팁 스크랩 여부 확인 -->
+	<select id="tipScrapCount" parameterType="vo.TipScrapVO" resultType="int">
+	  	SELECT COUNT(*) FROM tipscrap 
+	  	WHERE id=#{id} AND tno=#{tno}
+	</select>
+	
+	<!-- 비디오 스크랩 여부 확인 -->
+	<select id="videoScrapCount" parameterType="vo.VideoScrapVO" resultType="int">
+	  	SELECT COUNT(*) FROM videoscrap 
+	  	WHERE id=#{id} AND vno=#{vno}
+	</select>
+	
+	<!-- 뉴스 스크랩 취소 -->
+	<delete id="newsScrapDelete" parameterType="int">
+	  	DELETE FROM newsscrap 
+	  	WHERE no=#{no}
+	</delete>
+	
+	<!-- 팁 스크랩 취소 -->
+	<delete id="tipScrapDelete" parameterType="int">
+	  	DELETE FROM tipscrap 
+	  	WHERE no=#{no}
+	</delete>
+	
+	<!-- 비디오 스크랩 취소 -->
+	<delete id="videoScrapDelete" parameterType="int">
+	  	DELETE FROM videoscrap 
+	  	WHERE no=#{no}
+	</delete>
+	
+</mapper>

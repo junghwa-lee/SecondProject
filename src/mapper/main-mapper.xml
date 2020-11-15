@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.main-mapper">
+
+
+<!-- 채용공고  -->
+	<select id="mainGetAnnounce" resultType="WorkBVO">
+		SELECT l_no, lname, ltitle FROM saramin_emp WHERE l_no BETWEEN 1 AND 6
+	</select>
+
+<!-- 취업관련 팁의 사진, 제목 가져오기 -->
+	<select id="mainGetTip" resultType="vo.TipVO">
+		SELECT t_no, t_poster, t_title FROM tip WHERE t_no BETWEEN 1 AND 5
+	</select>
+	
+<!-- 공모전 가져오기 -->
+	<select id="mainGetGongmo" resultType="vo.GongmoVO">
+		SELECT gm_no, gm_poster, gm_host, gm_subject FROM gongmo WHERE gm_no BETWEEN 5 AND 6
+	</select>
+	
+<!-- 지식인 글 가져오기 -->
+	<select id="mainGetJobknowledge" resultType="JobKnowledgeVO">
+		SELECT no, subject, num, hit 
+		FROM (SELECT no, subject, hit, rownum as num
+		FROM (SELECT no, subject, hit FROM jobknowledge ORDER BY hit DESC))
+		WHERE num BETWEEN 1 AND 8
+	</select>
+	
+	
+<!-- 동영상 가져오기 -->
+	<select id="mainGetVideo" resultType="vo.VideoVO">
+		SELECT v_no, v_title, v_poster FROM video WHERE v_no BETWEEN 1 AND 4
+	</select>
+	
+	
+	
+	
+</mapper>

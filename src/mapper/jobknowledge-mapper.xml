@@ -1,0 +1,360 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.jobknowledge-mapper">
+
+<!-- 전체태그 게시글 리스트 출력 -->
+	<select id="jobknowledgeListData" resultType="JobKnowledgeVO" parameterType="hashmap">
+		SELECT no, subject, content, tag, regdate, reply, num
+		FROM (SELECT no, subject, content, tag, regdate, reply, rownum as num
+		FROM (SELECT no, subject, content, tag, regdate, reply
+		FROM jobknowledge WHERE root = 0 ORDER BY regdate desc))
+		WHERE num BETWEEN #{start} AND #{end}
+	</select>
+<!-- 총 페이지 구하기 -->
+	<select id="jobknowledgeTatalPage" resultType="int">
+		SELECT CEIL(COUNT(*) / 10.0) FROM jobknowledge WHERE root = 0
+	</select>
+	
+	
+<!-- 태그별 게시글 리스트 출력 -->
+	<select id="jobknowledgeListDataByTag" resultType="JobKnowledgeVO" parameterType="hashmap">
+		SELECT no, subject, content, tag, regdate, reply, num
+		FROM (SELECT no, subject, content, tag, regdate, reply, rownum as num
+		FROM (SELECT no, subject, content, tag, regdate, reply 
+		FROM jobknowledge WHERE tag = #{tag} AND root = 0 ORDER BY regdate desc))
+		WHERE num BETWEEN #{start} AND #{end}
+	</select>	
+<!-- 태그별 총 페이지 구하기 -->
+	<select id="jobknowledgeTatalPageByTag" resultType="int" parameterType="String">
+		SELECT CEIL(COUNT(*) / 10.0) FROM jobknowledge WHERE tag = #{tag} AND root = 0
+	</select>
+	
+	
+	
+	
+	
+	
+	
+<!-- 게시글 상세보기 -->
+	<select id="jobknowledgeDetail" resultType="JobKnowledgeVO" parameterType="int">
+		SELECT no, id, subject, content, regdate, hit, tag, point, reply FROM jobknowledge WHERE no = #{no}
+	</select>
+<!-- 상세보기할 때 조회수 증가 -->
+	<update id="jobknowledgeIncrementHit" parameterType="int">
+		UPDATE jobknowledge SET hit = hit + 1 WHERE no = #{no}
+	</update>
+<!-- 상세보기할 때 답변글 가져오기 -->
+	<select id="jobknowledgeDetailReply" resultType="JobKnowledgeVO" parameterType="int">
+		SELECT no, id, subject, content, regdate, hit, tag, adopt FROM jobknowledge WHERE root = #{no} ORDER BY regdate
+	</select>
+<!-- 상세보기할 때 채택된 답변글의 수 가져오기 (채택버튼 활성화 / 비활성화 관련) -->
+	<select id="getAdoptCount" resultType="int" parameterType="int">
+		SELECT COUNT(*) FROM jobknowledge WHERE root = #{no} AND adopt = 1
+	</select>	
+	
+	
+	
+<!-- 질문하기 -->
+	<insert id="jobknowledgeInsertAnswer" parameterType="JobKnowledgeVO">
+		INSERT INTO jobknowledge(no, id, subject, content, regdate, hit, group_id, group_step, root, depth, comment_id, tag, adopt, reply, point) 
+		VALUES(
+		(SELECT (MAX(no)) FROM jobknowledge)+1,
+		#{id},																	<!-- 아이디를 세션의 아이디로 지정할 것 -->
+		#{subject},
+		#{content},
+		SYSDATE,
+		0,
+		(SELECT (MAX(no)) FROM jobknowledge)+1,
+		0,
+		0,
+		0,
+		(SELECT (MAX(no)) FROM jobknowledge)+1,
+		#{tag},
+		0,
+		0,
+		#{point}
+		)
+	</insert>
+	
+	
+	
+	
+	
+<!-- 답변달기 -->
+	<insert id="jobknowledgeReply" parameterType="hashmap">
+		INSERT INTO jobknowledge(no, id, subject, content, regdate, hit, group_id, group_step, root, depth, comment_id, tag, adopt, reply) 
+		VALUES(
+		(SELECT (MAX(no)) FROM jobknowledge)+1,
+		#{id},
+		'답변제목',
+		#{content},
+		SYSDATE,
+		0,
+		(SELECT no FROM jobknowledge WHERE no = #{no}),
+		(SELECT group_step FROM jobknowledge WHERE no = #{no})+1,
+		(SELECT no FROM jobknowledge WHERE no = #{no}),
+		(SELECT depth FROM jobknowledge WHERE no = #{no})+1,
+		(SELECT no FROM jobknowledge WHERE no = #{no})+1,
+		'답변',
+		0,
+		0
+		)
+	</insert>
+<!-- 답변달릴시 원 질문글 답변수 증가 -->
+	<update id="jobknowledgeUpdateReply" parameterType="int">
+		UPDATE jobknowledge set reply = reply + 1 WHERE no = #{no}
+	</update>
+<!-- 답변작성시에 group_step 증가 -->
+	<update id="jobknowledgeUpdateGroupStep" parameterType="hashmap">
+		UPDATE jobknowledge set group_step = group_step+1 WHERE group_id = #{group_id} AND group_step &gt; #{group_step}
+	</update>
+<!-- 답변달리면 질문글의 noti컬럼 +1 -->
+	<update id="incrementNoti" parameterType="int">
+		UPDATE jobknowledge SET noti = noti + 1 WHERE no = #{board_no}
+	</update>
+	
+	
+	
+	
+	
+<!-- 게시글 수정하기 -->
+	<update id="jobknowledgeModifyBoard_ok" parameterType="hashmap">
+		UPDATE jobknowledge SET
+		content = #{content},
+		subject = #{subject}
+		WHERE no = #{no}
+	</update>
+	
+
+
+
+<!-- 답변 수정하기 -->
+	<update id="ModifyReply" parameterType="hashmap">
+		UPDATE jobknowledge SET
+		content = #{reply_content}
+		WHERE no = #{reply_no}
+	</update>
+<!-- 답변 수정 전 내용 가져오기 -->
+	<select id="getReply" resultType="JobKnowledgeVO" parameterType="int">
+		SELECT no, id, content FROM jobknowledge WHERE no = #{reply_no}
+	</select>
+	
+	
+	
+<!-- 게시글 삭제하기 -->
+	<delete id="jobknowledgeDeleteBoard" parameterType="int">
+		DELETE FROM jobknowledge WHERE no = #{no}
+	</delete>
+<!-- 답변 삭제하기 -->
+	<delete id="jobknowledgeDeleteReply" parameterType="int">
+		DELETE FROM jobknowledge WHERE root = #{no}
+	</delete>
+<!-- 댓글 삭제하기 -->
+	<delete id="deleteCommentWithBoard" parameterType="int">
+		DELETE FROM jobknowledge_comment WHERE board_no = #{no}
+	</delete>
+<!-- 스크랩 목록에서 제거하기 -->
+	<delete id="deleteBoardFromScrap" parameterType="int">
+		DELETE FROM jobknowledgescrap WHERE mno = #{no}
+	</delete>
+	
+	
+	
+<!-- 답변만 삭제하기 -->
+	<!-- <delete id="deleteReplyAlone" parameterType="int">
+		DELETE FROM jobknowledge WHERE no = #{rno}
+	</delete> -->
+	<delete id="deleteReplyAlone" parameterType="int">
+		DELETE FROM jobknowledge WHERE no = #{rno}
+	</delete>
+<!-- 삭제하기 전에 비밀번호 일치여부 확인 -->
+	<select id="getReplyPwd" resultType="String" parameterType="String">
+		SELECT pwd FROM userform WHERE id = #{id}
+	</select>
+<!-- 댓글도 삭제하기 -->
+	<delete id="deleteCommentWithReply" parameterType="int">
+		DELETE FROM jobknowledge_comment WHERE reply_no = #{rno}
+	</delete>
+<!-- 답변만 삭제시 질문글의 답변수 감소 -->
+	<update id="declineBoardHit" parameterType="int">
+		UPDATE jobknowledge SET reply = reply - 1 WHERE no = #{bno}
+	</update>
+	
+	
+	
+	
+<!-- 댓글만 삭제하기 -->
+	<delete id="deleteCommentAlone" parameterType="int">
+		DELETE FROM jobknowledge_comment WHERE no = #{no}
+	</delete>
+	
+	
+	
+<!-- 게시물 검색하기 -->
+	<select id="searchBoard" resultType="JobKnowledgeVO" parameterType="hashmap">
+		<!-- SELECT no, subject, content, tag, regdate, reply
+		FROM jobknowledge WHERE root = 0 AND #{finding} LIKE '%'||#{voca}||'%' ORDER BY regdate desc -->
+		SELECT no, subject, content, tag, regdate, reply, num
+		FROM (SELECT no, subject, content, tag, regdate, reply, rownum as num
+		FROM (SELECT no, subject, content, tag, regdate, reply
+		FROM jobknowledge WHERE root = 0 AND ${finding} LIKE '%'||'${voca}'||'%'ORDER BY regdate desc))
+		WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	<select id="searchTotalPage" resultType="int" parameterType="hashmap">
+		SELECT CEIL(COUNT(*) / 10.0) FROM jobknowledge WHERE #{finding} LIKE '%' || #{voca} || '%' AND root = 0
+	</select>
+	
+	
+	
+<!-- 스크랩 -->
+	<!-- 스크랩 저장  -->
+	<insert id="scrapInsert" parameterType="JobKnowledgeScrapVO">
+	INSERT INTO JobKnowledgeScrap VALUES(
+	(SELECT NVL(MAX(no)+1,1) FROM JobKnowledgeScrap),#{id},#{mno}
+	)
+	</insert>
+	<!-- 스크랩 리스트 가져오기 -->
+	<select id="scrapListData" parameterType="String" resultType="JobKnowledgeScrapVO">
+	SELECT * FROM JobKnowledgeScrap
+	WHERE id=#{id}
+	ORDER BY no DESC
+	</select>
+	<!-- 스크랩 여부 확인 -->
+	<select id="scrapCount" parameterType="JobKnowledgeScrapVO" resultType="int">
+	SELECT COUNT(*) FROM JobKnowledgeScrap
+	WHERE id=#{id} AND mno=#{mno}
+	</select>
+	<!-- 스크랩 취소  -->
+	<delete id="scrapDelete" parameterType="int">
+	DELETE FROM JobKnowledgeScrap
+	WHERE mno=#{no}
+	</delete>
+	
+	
+	
+	
+	
+	
+	<!-- 댓글 올리기  -->
+  <insert id="commentInsert" parameterType="JobKnowledge_CommentVO">
+    <!-- 적용할 수 없다(한번) -->
+    <selectKey keyProperty="no" resultType="int" order="BEFORE">
+      SELECT NVL(MAX(no)+1,1) as no FROM jobknowledge_comment
+    </selectKey>
+    INSERT INTO jobknowledge_comment(no, reply_no, id, content, comment_id, board_no) VALUES(
+      #{no},
+      #{reply_no},
+      #{id},
+      #{content},
+      (SELECT NVL(MAX(comment_id)+1,1) FROM jobknowledge_comment),
+      #{board_no}
+    )
+  </insert>
+<!-- 댓글올릴 때 답변글의 reply 증가 -->
+	<update id="incrementReplyReply" parameterType="int">
+		UPDATE jobknowledge SET reply = reply + 1 WHERE no = #{reply_no}
+	</update>
+  
+  <!-- 댓글목록 가져오기 -->
+  <select id="commentListData" resultType="JobKnowledge_CommentVO" parameterType="hashmap">
+    SELECT no, reply_no, id, content, TO_CHAR(regdate,'YYYY-MM-DD HH24:MI:SS') as dbday, comment_tab 
+    FROM jobknowledge_comment 
+    WHERE reply_no=#{reply_no} AND board_no = #{board_no}
+    ORDER BY comment_id ASC , comment_step ASC
+  </select>
+  <!-- ORDER BY comment_id DESC에서 ASC로 변경함 ☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★☆★ -->
+  
+  <!-- 
+                         no  group_id   group_step  group_tab  root  depth
+        AAAAAA            1     1          0            0              3
+          =>OOOOOOO      8     1          1            1              0
+          =>KKKKKKK       7     1          2            1              0
+          =>BBBBBB        2     1          3            1              1
+          
+           =>CCCCCCC      3     1          4            2              1
+            =>FFFFFFF     5     1          5            3              0
+          
+        DDDDDD            4     2          0            0              1
+          => GGGGGGG      6     2          1            1              0
+          => KKKKKK       9     2          1            1
+   -->
+   
+   <!-- 대댓글의 부모댓글 comment_id,comment_step,comment_tab 가져오기 -->
+  <select id="commentParentData" parameterType="int" resultType="JobKnowledge_CommentVO">
+   SELECT comment_id,comment_step,comment_tab
+   FROM jobknowledge_comment
+   WHERE no=#{no}
+  </select>
+  
+  <!-- 부모댓글 내의 다른 댓글들 순서 증가 -->
+  <!-- comment_id가 #{comment_id}이고 comment_step이 #{comment_step}인 댓글의 comment_step을  1 증가 -->
+  <update id="commentStepIncrement" parameterType="JobKnowledge_CommentVO">
+    UPDATE jobknowledge_comment SET
+    comment_step=comment_step+1
+    WHERE comment_id=#{comment_id} AND comment_step>#{comment_step}
+  </update>
+  
+  <!-- 대댓글 달기 -->
+  <insert id="commentCommentInsert" parameterType="JobKnowledge_CommentVO">
+    <selectKey keyProperty="no" resultType="int" order="BEFORE">
+      SELECT NVL(MAX(no)+1,1) as no FROM jobknowledge_comment
+    </selectKey>
+    INSERT INTO jobknowledge_comment(no, reply_no, id, content, comment_id, comment_step, comment_tab, root, depth, board_no) VALUES(
+      #{no},
+      #{reply_no},
+      #{id},
+      #{content},
+      #{comment_id},
+      #{comment_step},
+      #{comment_tab},
+      #{root},
+      #{board_no}
+      0
+    )
+  </insert>
+  
+  <!-- 부모댓글의 댓글수 증가 -->
+  <update id="commentDepthIncrement" parameterType="int">
+    UPDATE jobknowledge_comment SET
+    depth=depth+1
+    WHERE no=#{no}
+  </update>
+  
+  
+  
+  
+  
+  
+<!-- 채택하기 -->
+	<update id="sendAdoptPoint" parameterType="hashmap">
+		UPDATE userform set point = point + (SELECT point FROM jobknowledge WHERE no = #{board_no} ) WHERE id = #{reply_id}
+	</update>
+<!-- 질문자 포인트 감소 -->
+	<update id="declineAnswerPoint" parameterType="hashmap">
+		UPDATE userform set point = point - (SELECT point FROM jobknowledge WHERE no = #{board_no} ) WHERE id = #{board_id}
+	</update>
+<!-- 답변글 채택상태 변경 -->
+	<update id="yesAdopt" parameterType="int">
+		UPDATE jobknowledge SET adopt = adopt + 1 WHERE no = #{reply_no}
+	</update>
+	
+	
+	
+<!-- 유저 포인트 표시 (사이드바) -->
+	<select id="indicatePoint" resultType="int" parameterType="String">
+		SELECT point FROM userform WHERE id = #{id}
+	</select>
+	
+<!-- noti가 증가한 질문글 표시 (사이드바) -->
+	<select id="indicateNotiBoard" resultType="JobKnowledgeVO" parameterType="String">
+		SELECT no, noti, subject FROM jobknowledge WHERE id = #{id} AND noti &gt; 0
+	</select>
+	
+	
+	
+	
+<!-- 사이드바에서 알람 클릭시 noti 감소 -->
+	<update id="declineNoti">
+		UPDATE jobknowledge SET noti = noti - (SELECT noti FROM jobknowledge WHERE no = #{no}) WHERE no = #{no}
+	</update>
+</mapper>

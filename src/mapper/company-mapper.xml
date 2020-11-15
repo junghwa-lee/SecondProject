@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.company-mapper">
+ 	<!--기업목록  -->
+	<select id="comListData" resultType="ComVO" parameterType="hashmap">
+	SELECT cno,cateno,cname,clogo,ctype,cindutype,cloc,cscore,num
+	FROM (SELECT cno,cateno,cname,clogo,ctype,cindutype,cloc,cscore,rownum as num
+	FROM (SELECT cno,cateno,cname,clogo,ctype,cindutype,cloc,cscore
+	FROM company WHERE cateno=#{cateno} ORDER BY cscore DESC))
+	WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 기업 총페이지 -->
+	<select id="comTotalPage" resultType="int" parameterType="int">
+	SELECT CEIL(COUNT(*)/10.0) FROM company
+	WHERE cateno=#{cateno}
+	</select>
+	
+	<!-- 기업 상세보기 -->
+	<select id="comDetailData" resultType="ComVO" parameterType="int">
+	SELECT * FROM company
+	WHERE cno=#{cno}
+	</select>
+	
+	<!-- 기업 후기보기 -->
+	<select id="workReviewListData" resultType="WorkVO" parameterType="int">
+	SELECT workreview.* FROM company, workreview 
+	WHERE company.cno=workreview.cno AND company.cno=#{cno}
+	</select>
+	<!-- 기업후기 총페이지 -->
+	<select id="workReviewTotalPage" resultType="int"	parameterType="int">
+	SELECT CEIL(COUNT(*)/2.0) FROM workreview
+	WHERE cno=#{cno}
+	</select>
+
+	<!-- 면접 후기보기 -->
+	<select id="intReviewListData" resultType="IntVO" parameterType="int">
+	SELECT intreview.* FROM company, intreview 
+	WHERE company.cno=intreview.cno AND company.cno=#{cno}
+	</select>
+	
+	<!-- 기업후기 작성 -->
+	<insert id="workReviewInsert" parameterType="WorkVO">
+	<selectKey keyProperty="rno" resultType="int" order="BEFORE">
+	SELECT NVL(MAX(rno)+1,1) as rno FROM workreview
+	</selectKey>
+	INSERT INTO workreview VALUES(
+		#{rno},
+		#{rtype},
+		#{rloc},
+		#{rdate},
+		#{rscore},
+		#{rsub},
+		#{rgood},
+		#{rbad},
+		#{rwish}
+	)
+	</insert>
+	
+	<!-- 면접후기 작성 -->
+	<insert id="intReviewInsert" parameterType="IntVO">
+	<selectKey keyProperty="ino" resultType="int" order="BEFORE">
+	SELECT NVL(MAX(ino)+1,1) as ino FROM intreview
+	</selectKey>
+	INSERT INTO intreview VALUES(
+		#{ino},
+		#{iscore},
+		#{iregdate},
+		#{iq},
+		#{ia},
+		#{ireview},
+		#{iresult},
+	)
+	</insert>
+	
+
+	<!-- 기업 검색하기 -->
+	<select id="comFindData" resultType="ComVO" parameterType="hashmap">
+	<!-- SELECT * FROM company
+	WHERE ${fd} LIKE '%'||#{ss}||'%' -->
+	SELECT cno,cateno,cname,clogo,ctype,cindutype,cloc,cscore,num
+	FROM (SELECT cno,cateno,cname,clogo,ctype,cindutype,cloc,cscore,rownum as num
+	FROM (SELECT cno,cateno,cname,clogo,ctype,cindutype,cloc,cscore
+	FROM company WHERE cname LIKE '%'||'${fname}'||'%' ORDER BY cscore DESC))
+	WHERE num BETWEEN #{start} AND #{end}
+	</select>
+	
+	<!-- 기업 검색 페이지 -->
+	<select id="comFindTotalPage" resultType="int" parameterType="hashmap">
+	<!-- SELECT COUNT(*)
+	FROM company
+	WHERE ${fd} LIKE '%'||#{ss}||'%' -->
+	SELECT CEIL(COUNT(*)/10.0) FROM company WHERE #{fname} LIKE '%' || #{fname} ||'%'
+	</select>
+	
+	
+</mapper>

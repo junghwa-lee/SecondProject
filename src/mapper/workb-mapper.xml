@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 채용공고 자소서 -->
+<mapper namespace="mapper.workb-mapper">
+	<!-- 채용공고 리스트 -->
+	<select id="workbListData" resultType="WorkBVO"
+		parameterType="hashmap">
+		SELECT
+		l_no,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace,num
+		FROM (SELECT
+		l_no,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace,rownum
+		as num
+		FROM (SELECT
+		l_no,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace
+		FROM saramin_emp ORDER BY l_no DESC))
+		WHERE num BETWEEN #{start} AND
+		#{end}
+	</select>
+
+	<!-- 채용공고 리스트 총페이지 -->
+	<select id="workbTotalPage" resultType="int">
+		SELECT
+		CEIL(COUNT(*)/10.0) FROM saramin_emp
+	</select>
+
+	<!-- 채용공고 상세보기 -->
+	<select id="workbDetailData" resultType="WorkBVO"
+		parameterType="int">
+		SELECT
+		l_no,lcateno,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace,num
+		FROM (SELECT
+		l_no,lcateno,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace,rownum
+		as num
+		FROM (SELECT
+		l_no,lcateno,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace
+		FROM saramin_emp ORDER BY l_no DESC))
+		WHERE num BETWEEN #{start} AND
+		#{end}
+		<!-- SELECT * FROM saramin_emp WHERE l_no=#{l_no } -->
+	</select>
+
+	<!-- 태그별 게시글 리스트 출력 -->
+	<select id="workbListDataBySelect" resultType="WorkBVO"
+		parameterType="hashmap">
+		SELECT
+		l_no,lcateno,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace,
+		num
+		FROM (SELECT
+		l_no,lcateno,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace,
+		rownum as num
+		FROM (SELECT
+		l_no,lcateno,lname,ltitle,lapp_qual1,lapp_qual2,lapp_con,ldeadline,lsal,lworkspace
+		FROM saramin_emp WHERE lcateno = #{lcateno} ORDER BY l_no DESC))
+		WHERE
+		num BETWEEN #{start} AND #{end}
+	</select>
+
+	<!-- 태그별 총 페이지 구하기 -->
+	<select id="workbTotalPageBySelect" resultType="int"
+		parameterType="String">
+		SELECT CEIL(COUNT(*) / 10.0) FROM saramin_emp WHERE
+		lcateno = #{lcateno}
+	</select>
+
+	<!-- jobcalendar => list 출력 -->
+	<select id="jobcalendar_list" resultType="vo.WorkBVO">
+		SELECT * FROM
+		saramin_emp
+		WHERE ldeadline LIKE '%~%'
+	</select>
+
+	<select id="jobcalendar_list2" resultType="vo.WorkBVO">
+		SELECT * FROM
+		saramin_emp
+		WHERE ldeadline LIKE '%'||'#{deadline}'||'%'
+	</select>
+	
+	<!-- jobcalendar2 로 보내는 데이터 -->
+	<select id="jobcalendar2_listdata" resultType="vo.WorkBVO"
+		parameterType="hashmap">
+		SELECT * FROM saramin_emp
+		WHERE ldeadline LIKE '%'||#{ss}||'%'
+	</select>
+
+	<!-- 좋1아요 -->
+	<update id="likeIncrement" parameterType="int">
+		UPDATE saramin_emp SET
+		hit=hit+1
+		WHERE no=#{no}
+	</update>
+
+	<!-- 찜 저장 -->
+	<insert id="jjimInsert" parameterType="vo.JjimVO">
+		INSERT INTO jjim1 VALUES(
+		(SELECT NVL(MAX(no)+1,1) FROM jjim2),#{id},#{l_no}
+		)
+	</insert>
+
+	<!-- 데이터 읽기(찜 목록) -->
+	<select id="jjimListData" parameterType="String"
+		resultType="vo.JjimVO">
+		SELECT * FROM jjim1
+		WHERE id=#{id}
+		ORDER BY no DESC
+	</select>
+
+	<!-- 찜여부 확인 -->
+	<select id="jjimCount" parameterType="vo.JjimVO"
+		resultType="int">
+		SELECT COUNT(*) FROM jjim1
+		WHERE id=#{id} AND l_no=#{l_no}
+	</select>
+
+	<!-- 찜 취소시에 처리 -->
+	<delete id="jjimDelete" parameterType="int">
+		DELETE FROM jjim1
+		WHERE
+		no=#{no}
+	</delete>
+</mapper>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="mapper.resume-mapper">
+
+  <select id="resumeListData" resultType="vo.ResumeVO" parameterType="String">
+  	SELECT id,no,subject,stype,sname,smajor,sdate1,sdate2,state,btype,bname,bgrade,bdate,cname,cdate,cl
+  	FROM resume
+  	WHERE id=#{id}
+  </select>
+
+  <insert id="resumeInsert" parameterType="vo.ResumeVO">
+  <selectKey keyProperty="no" resultType="int" order="BEFORE">
+     SELECT NVL(MAX(no)+1,1) as no FROM resume
+  </selectKey>
+     INSERT INTO resume VALUES(
+       #{id},
+       #{no},
+       #{subject},
+       #{stype},
+       #{sname},
+       #{smajor},
+       #{sdate1},
+       #{sdate2},
+       #{state},
+       #{btype},
+       #{bname},
+       #{bgrade},
+       #{bdate},
+       #{cname},
+       #{cdate},
+       #{cl}
+     )
+  </insert>
+  
+  <select id="resumeUpdate_ok" resultType="vo.ResumeVO">
+  	SELECT id,no,subject,stype,sname,smajor,sdate1,sdate2,state,btype,bname,bgrade,bdate,cname,cdate,cl
+  	FROM resume
+  	WHERE no=#{no}
+  </select>
+  
+  <update id="resumeUpdate" parameterType="vo.ResumeVO">
+  	UPDATE resume SET
+	 subject=#{subject},  	 
+  	 stype=#{stype},
+	 sname=#{sname},
+	 smajor=#{smajor},
+	 sdate1=#{sdate1},
+	 sdate2=#{sdate2},
+	 state=#{state},
+	 btype=#{btype},
+	 bname=#{bname},
+	 bgrade=#{bgrade},
+	 bdate=#{bdate},
+	 cname=#{cname},
+     cdate=#{cdate},
+	 cl=#{cl}
+   WHERE no=#{no}
+  </update>
+	  
+  
+  <delete id="resumeDelete" parameterType="int">
+    DELETE FROM resume 
+    WHERE no=#{no}
+  </delete>
+  
+  
+  <select id="resumePrint" resultType="vo.ResumeVO">
+  	SELECT id,no,subject,stype,sname,smajor,sdate1,sdate2,state,btype,bname,bgrade,bdate,cname,cdate,cl
+  	FROM resume
+  	WHERE no=#{no}
+  </select>
+  
+</mapper>
